@@ -2,17 +2,22 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <errno.h>
 #define MAX_BUFFER 1000
 #define MAX_ARGS 64
 
 int main(void){
     //variables
     char buffer[MAX_BUFFER];
+    char path[MAX_BUFFER];
     char *argv[MAX_ARGS];
     while(1){
         int arg_count = 0;
         char *p = buffer;
-        printf("shall>");//name of shell
+        if (getcwd(path, sizeof(path)) == NULL) {
+            perror("getcwd");
+        }
+        printf("shall:%s%% ", path);
         fflush(stdout);
 
         //gets command from user
@@ -43,15 +48,27 @@ int main(void){
                 p++;
             }
         }
-
+        argv[arg_count] = NULL;
         if(arg_count==0)
             continue;
 
         //checks for exit
-        if (!strcmp(argv[0], "exit"))//means they are equal 
+        if (strcmp(argv[0], "exit")==0)//means they are equal 
             break;
+        //checks for cd    
+        if (strcmp(argv[0], "cd") == 0) {
+            if (arg_count < 2) {
+                printf("cd: missing argument\n");
+                continue;
+            }
 
-        argv[arg_count] = NULL;
+            if (chdir(argv[1]) == -1) {
+                perror("cd");
+            }
+
+            continue;
+        }
+        
         //pid part
         pid_t pid=fork(); 
         if(pid>0){
@@ -59,8 +76,13 @@ int main(void){
         }
         else if(pid==0){
             execvp(argv[0],argv);
-            perror("execvp");
+            if (errno == ENOENT) {
+                fprintf(stderr, "shall: command not found: %s\n", argv[0]);
+            } else {
+                perror(argv[0]);
+            }
             _exit(127);
+
         }
         else{
             perror("fork");
