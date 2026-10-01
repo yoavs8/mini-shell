@@ -14,7 +14,9 @@ int main(void){
     char *argv[MAX_ARGS];
     
     while(1){
+        int fd=-1;
         int arg_count = 0;
+        int append_mode = 0;
         int syntax_error = 0;
         char *p = buffer;
         char *output_file = NULL;
@@ -65,6 +67,24 @@ int main(void){
                 if(i + 1 < arg_count){
                     output_file=argv[i+1];
                     argv[i]=NULL;
+                    append_mode = 0;
+                    break;
+                }else{
+                    fprintf(stderr, "shall: expected filename after >\n");
+                    syntax_error = 1;
+                    break;
+                }
+            }
+            if(strcmp(argv[i], ">>") == 0){
+                if (i == 0) {
+                    fprintf(stderr, "shall: expected command before >\n");
+                    syntax_error = 1;
+                    break;
+                }
+                if(i + 1 < arg_count){
+                    output_file=argv[i+1];
+                    argv[i]=NULL;
+                    append_mode = 1;
                     break;
                 }else{
                     fprintf(stderr, "shall: expected filename after >\n");
@@ -73,6 +93,7 @@ int main(void){
                 }
             }
         }
+
         if (syntax_error)
             continue;
         //checks for exit
@@ -99,7 +120,11 @@ int main(void){
         }
         else if(pid==0){
             if(output_file != NULL){
-                int fd = open(output_file,O_WRONLY | O_CREAT | O_TRUNC,0644);
+                if(append_mode){
+                    fd = open(output_file,O_WRONLY | O_CREAT | O_APPEND,0644);
+                }else{
+                    fd = open(output_file,O_WRONLY | O_CREAT | O_TRUNC,0644);
+                }
                 if(fd==-1){
                     perror(output_file);
                     _exit(1);
@@ -127,3 +152,5 @@ int main(void){
     }
     return 0;
 }
+
+
