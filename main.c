@@ -12,14 +12,15 @@ int main(void){
     char buffer[MAX_BUFFER];
     char path[MAX_BUFFER];
     char *argv[MAX_ARGS];
-    
     while(1){
-        int fd=-1;
+        char *input_file = NULL;
+        char *output_file = NULL;
+        int file_fd=-1;
+        int input_redirection=0;
         int arg_count = 0;
         int append_mode = 0;
         int syntax_error = 0;
         char *p = buffer;
-        char *output_file = NULL;
         if (getcwd(path, sizeof(path)) == NULL) {
             perror("getcwd");
         }
@@ -77,7 +78,7 @@ int main(void){
             }
             if(strcmp(argv[i], ">>") == 0){
                 if (i == 0) {
-                    fprintf(stderr, "shall: expected command before >\n");
+                    fprintf(stderr, "shall: expected command before >>\n");
                     syntax_error = 1;
                     break;
                 }
@@ -87,7 +88,24 @@ int main(void){
                     append_mode = 1;
                     break;
                 }else{
-                    fprintf(stderr, "shall: expected filename after >\n");
+                    fprintf(stderr, "shall: expected filename after >>\n");
+                    syntax_error = 1;
+                    break;
+                }
+            }
+            if(strcmp(argv[i], "<") == 0){
+                if (i == 0) {
+                    fprintf(stderr, "shall: expected command before <\n");
+                    syntax_error = 1;
+                    break;
+                }
+                if(i + 1 < arg_count){
+                    input_file=argv[i+1];
+                    argv[i]=NULL;
+                    input_redirection = 1;
+                    break;
+                }else{
+                    fprintf(stderr, "shall: expected filename after <\n");
                     syntax_error = 1;
                     break;
                 }
@@ -119,24 +137,43 @@ int main(void){
             waitpid(pid,NULL,0);
         }
         else if(pid==0){
+
             if(output_file != NULL){
-                if(append_mode){
-                    fd = open(output_file,O_WRONLY | O_CREAT | O_APPEND,0644);
-                }else{
-                    fd = open(output_file,O_WRONLY | O_CREAT | O_TRUNC,0644);
+                if(append_mode && !input_redirection){
+                    file_fd = open(output_file,O_WRONLY | O_CREAT | O_APPEND,0644);
                 }
-                if(fd==-1){
+                else if(!append_mode && !input_redirection){
+                    file_fd = open(output_file,O_WRONLY | O_CREAT | O_TRUNC,0644);
+                }
+                if(file_fd==-1){
                     perror(output_file);
                     _exit(1);
                 }
-                int fd2 = dup2(fd, STDOUT_FILENO);
-                if(fd2==-1){
-                       perror("dup2");
-                    close(fd);
+                if(dup2(file_fd, STDOUT_FILENO)==-1){
+                    perror("dup2");
+                    close(file_fd);
                     _exit(1);
                 }
-                close(fd);
+                close(file_fd);
             }
+            
+            else if(input_file != NULL){
+                if(input_redirection){
+                    file_fd = open(input_file,O_RDONLY);
+                }
+                if(file_fd==-1){
+                    perror(input_file);
+                    _exit(1);
+                }
+                if(dup2(file_fd, STDIN_FILENO)==-1){
+                    perror("dup2");
+                    close(file_fd);
+                    _exit(1);
+                }
+                close(file_fd);
+            }
+
+
             execvp(argv[0],argv);
             if (errno == ENOENT) {
                 fprintf(stderr, "shall: command not found: %s\n", argv[0]);
@@ -144,7 +181,6 @@ int main(void){
                 perror(argv[0]);
             }
             _exit(127);
-
         }
         else{
             perror("fork");
@@ -152,5 +188,3 @@ int main(void){
     }
     return 0;
 }
-
-
