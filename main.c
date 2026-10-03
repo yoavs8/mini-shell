@@ -20,6 +20,8 @@ int main(void){
         int append_mode = 0;
         int syntax_error = 0;
         char *p = buffer;
+        char **left_argv;
+        char **right_argv;
         if (getcwd(path, sizeof(path)) == NULL) {
             perror("getcwd");
         }
@@ -111,6 +113,23 @@ int main(void){
                     break;
                 }
             }
+            if(strcmp(argv[i], "|") == 0){
+                if (i == 0) {
+                    fprintf(stderr, "shall: expected command before |\n");
+                    syntax_error = 1;
+                    break;
+                }
+                if(i + 1 < arg_count){
+                    left_argv = argv;
+                    right_argv = &argv[i + 1];
+                    argv[i]=NULL;
+                    break;
+                }else{
+                    fprintf(stderr, "shall: expected command after |\n");
+                    syntax_error = 1;
+                    break;
+                }
+            }
         }
 
         if (syntax_error)
@@ -138,7 +157,62 @@ int main(void){
             waitpid(pid,NULL,0);
         }
         else if(pid==0){
+            if (left_argv != NULL && right_argv != NULL) {
+                int pipefd[2];
+                if (pipe(pipefd) == -1) {
+                    perror("pipe");
+                    continue;
+                }
+                pid_t left_pid=fork();
+                   if (left_pid == -1) {
+                        perror("fork");
+                        close(pipefd[0]);
+                        close(pipefd[1]);
+                        continue;
+                    }
+                if(left_pid==0){
+                    if(dup2(pipefd[1], STDOUT_FILENO)==-1){
+                    perror("dup2");
+                    close(pipefd[0]);
+                    close(pipefd[1]);
+                    _exit(1);
+                    }
+                    close(pipefd[0]);
+                    close(pipefd[1]);
 
+                    execvp(left_argv[0], left_argv);
+                    perror("execvp");
+                    _exit(1);
+                }
+                pid_t right_pid=fork();
+
+                if (right_pid == -1) {
+                    perror("fork");
+                    close(pipefd[0]);
+                    close(pipefd[1]);
+                    waitpid(left_pid, NULL, 0);
+                    continue;
+                }
+                if(right_pid==0){
+                    if(dup2(pipefd[0], STDIN_FILENO)==-1){
+                    perror("dup2");
+                    close(pipefd[0]);
+                    close(pipefd[1]);
+                    _exit(1);
+                    }
+                    close(pipefd[0]);
+                    close(pipefd[1]);
+
+                    execvp(right_argv[0], right_argv);
+                    perror("execvp");
+                    _exit(1);
+                }
+                close(pipefd[0]);
+                close(pipefd[1]);
+                waitpid(left_pid,NULL,0);
+                waitpid(right_pid,NULL,0);
+                continue;
+            }
             if(output_file != NULL){
                 file_fd = append_mode
                 ? open(output_file, O_WRONLY | O_CREAT | O_APPEND, 0644)
