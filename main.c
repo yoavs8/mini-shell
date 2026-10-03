@@ -16,7 +16,6 @@ int main(void){
         char *input_file = NULL;
         char *output_file = NULL;
         int file_fd=-1;
-        int input_redirection=0;
         int arg_count = 0;
         int append_mode = 0;
         int syntax_error = 0;
@@ -69,7 +68,8 @@ int main(void){
                     output_file=argv[i+1];
                     argv[i]=NULL;
                     append_mode = 0;
-                    break;
+                    i++;
+                    continue;
                 }else{
                     fprintf(stderr, "shall: expected filename after >\n");
                     syntax_error = 1;
@@ -86,7 +86,8 @@ int main(void){
                     output_file=argv[i+1];
                     argv[i]=NULL;
                     append_mode = 1;
-                    break;
+                    i++;
+                    continue;
                 }else{
                     fprintf(stderr, "shall: expected filename after >>\n");
                     syntax_error = 1;
@@ -102,8 +103,8 @@ int main(void){
                 if(i + 1 < arg_count){
                     input_file=argv[i+1];
                     argv[i]=NULL;
-                    input_redirection = 1;
-                    break;
+                    i++;
+                    continue;
                 }else{
                     fprintf(stderr, "shall: expected filename after <\n");
                     syntax_error = 1;
@@ -139,12 +140,10 @@ int main(void){
         else if(pid==0){
 
             if(output_file != NULL){
-                if(append_mode && !input_redirection){
-                    file_fd = open(output_file,O_WRONLY | O_CREAT | O_APPEND,0644);
-                }
-                else if(!append_mode && !input_redirection){
-                    file_fd = open(output_file,O_WRONLY | O_CREAT | O_TRUNC,0644);
-                }
+                file_fd = append_mode
+                ? open(output_file, O_WRONLY | O_CREAT | O_APPEND, 0644)
+                : open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                
                 if(file_fd==-1){
                     perror(output_file);
                     _exit(1);
@@ -157,10 +156,8 @@ int main(void){
                 close(file_fd);
             }
             
-            else if(input_file != NULL){
-                if(input_redirection){
-                    file_fd = open(input_file,O_RDONLY);
-                }
+            if(input_file != NULL){
+                file_fd = open(input_file,O_RDONLY);     
                 if(file_fd==-1){
                     perror(input_file);
                     _exit(1);
