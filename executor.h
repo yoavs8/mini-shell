@@ -2,6 +2,6 @@
 #define EXECUTOR_H
 #include "parser.h"
 
-int execute_command(const Command *cmd);
+int execute_pipeline(const pipeline *pipe);
 
 #endif

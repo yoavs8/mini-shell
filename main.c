@@ -18,7 +18,6 @@ int main(void) {
     // commands.
     while (1) {
         struct passwd *user;
-
         if (getcwd(path, sizeof(path)) == NULL) {
             perror("getcwd");
             printf("shall:");
@@ -46,25 +45,25 @@ int main(void) {
             return 0;
         }
         buffer[strcspn(buffer, "\n")] = '\0';
-        Command cmd = {0};
-        int parse_result = parse_command(buffer, &cmd);
+        pipeline pipe = {0};
+        int parse_result = parse_pipeline(buffer, &pipe);
         if (parse_result <= 0)
             continue;
-        if (strcmp(cmd.argv[0], "exit") == 0)
+        if (strcmp(pipe.commands->argv[0], "exit") == 0)
             break;
 
-        if (strcmp(cmd.argv[0], "cd") == 0) {
-            if (cmd.argv[1] == NULL) {
+        if (strcmp(pipe.commands->argv[0], "cd") == 0) {
+            if (pipe.commands->argv[1] == NULL) {
                 printf("cd: missing argument\n");
                 continue;
             }
 
-            if (chdir(cmd.argv[1]) == -1) {
+            if (chdir(pipe.commands->argv[1]) == -1) {
                 perror("cd");
             }
             continue;
         }
-        execute_command(&cmd);
+        execute_pipeline(&pipe);
     }
     return 0;
 }

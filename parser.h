@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #define MAX_ARGS 64
+#define MAX_COMMANDS 64
 
 typedef struct {
     char *argv[MAX_ARGS];
@@ -9,8 +10,13 @@ typedef struct {
     char *input_file;
     char *output_file;
     int append_mode;
-} Command;
+} command;
 
-int parse_command(char *buffer, Command *cmd);
+typedef struct {
+    command commands[MAX_COMMANDS];
+    int command_count;
+} pipeline;
+
+int parse_pipeline(char *buffer, pipeline *pipeline);
 
 #endif
