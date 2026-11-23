@@ -15,6 +15,20 @@
 #define SHELL_COLOR "\033[35m" // magenta
 #define RESET_COLOR "\033[0m"  // white
 
+static volatile sig_atomic_t sigint_received = 0;
+
+static void handle_sigint(int signum) {
+    (void)signum;
+    sigint_received = 1;
+}
+static int readline_event(void) {
+    if (!sigint_received)
+        return 0;
+    rl_replace_line("", 0);
+    fputs("^C", rl_outstream);
+    rl_done = 1;
+    return 0;
+}
 int main(void) {
     char path[MAX_BUFFER];
     char host_name[MAX_BUFFER];
@@ -23,7 +37,9 @@ int main(void) {
     int needed = 0;
     size_t prompt_size = 0;
     struct sigaction sa = {0};
-    sa.sa_handler = SIG_IGN;
+    sa.sa_handler = handle_sigint;
+    rl_catch_signals = 0;
+    rl_event_hook = readline_event;
     if (sigemptyset(&sa.sa_mask) == -1) {
         perror("sigemptyset");
         exit(EXIT_FAILURE);
@@ -154,10 +170,15 @@ int main(void) {
                          path);
             }
         }
-
+        sigint_received = 0;
         char *buffer = readline(prompt);
         free(prompt);
-
+        if (sigint_received) {
+            last_status = 130;
+            sigint_received = 0;
+            free(buffer);
+            continue;
+        }
         if (buffer == NULL)
             break;
 

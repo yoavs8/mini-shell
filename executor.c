@@ -142,8 +142,12 @@ int execute_pipeline(const pipeline *pipeline) {
         if (WIFEXITED(status))
             return WEXITSTATUS(status);
 
-        if (WIFSIGNALED(status))
+        if (WIFSIGNALED(status)) {
+            if (WTERMSIG(status) == SIGINT)
+                putchar('\n');
+
             return 128 + WTERMSIG(status);
+        }
 
         return -1;
     } else if (pid == 0) {
