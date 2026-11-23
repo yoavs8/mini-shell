@@ -10,10 +10,10 @@
 #include <unistd.h>
 
 #define MAX_BUFFER 10000
-#define HOST_COLOR "\033[36m"  // cyan
-#define PATH_COLOR "\033[34m"  // blue
-#define SHELL_COLOR "\033[35m" // magenta
-#define RESET_COLOR "\033[0m"  // white
+#define HOST_COLOR "\001\033[36m\002"  // cyan
+#define PATH_COLOR "\001\033[34m\002"  // blue
+#define SHELL_COLOR "\001\033[35m\002" // magenta
+#define RESET_COLOR "\001\033[0m\002"  // white
 
 static volatile sig_atomic_t sigint_received = 0;
 
@@ -131,8 +131,10 @@ int main(void) {
 
             if (strncmp(path, user->pw_dir, len) == 0 && (path[len] == '/' || path[len] == '\0')) {
 
-                needed =
-                    snprintf(NULL, 0, "shall: %s@%s:~%s %% ", user->pw_name, host_name, path + len);
+                needed = snprintf(NULL, 0,
+                                  SHELL_COLOR "shall:" HOST_COLOR " %s@%s:" PATH_COLOR
+                                              "~%s" RESET_COLOR " %% ",
+                                  user->pw_name, host_name, path + len);
 
                 if (needed < 0) {
                     fprintf(stderr, "shall: prompt formatting failed\n");
@@ -147,11 +149,16 @@ int main(void) {
                     break;
                 }
 
-                snprintf(prompt, prompt_size, "shall: %s@%s:~%s %% ", user->pw_name, host_name,
-                         path + len);
+                snprintf(prompt, prompt_size,
+                         SHELL_COLOR "shall:" HOST_COLOR " %s@%s:" PATH_COLOR "~%s" RESET_COLOR
+                                     " %% ",
+                         user->pw_name, host_name, path + len);
 
             } else {
-                needed = snprintf(NULL, 0, "shall: %s@%s:%s %% ", user->pw_name, host_name, path);
+                needed = snprintf(NULL, 0,
+                                  SHELL_COLOR "shall: " HOST_COLOR "%s@%s:" PATH_COLOR
+                                              "%s" RESET_COLOR " %% ",
+                                  user->pw_name, host_name, path);
 
                 if (needed < 0) {
                     fprintf(stderr, "shall: prompt formatting failed\n");
@@ -166,8 +173,10 @@ int main(void) {
                     break;
                 }
 
-                snprintf(prompt, prompt_size, "shall: %s@%s:%s %% ", user->pw_name, host_name,
-                         path);
+                snprintf(prompt, prompt_size,
+                         SHELL_COLOR "shall: " HOST_COLOR "%s@%s:" PATH_COLOR "%s" RESET_COLOR
+                                     " %% ",
+                         user->pw_name, host_name, path);
             }
         }
         sigint_received = 0;
